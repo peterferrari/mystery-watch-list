@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mystery Watch List</title>
+<meta name="description" content="Every mystery show we follow, where it streams, and where we are in it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#eef0f2; --panel:#ffffff; --fg:#1b2533; --muted:#5d6878; --line:#d5dae1;
+  --accent:#1f4a7a; --accent-soft:#e3ebf5; --tag:#f3d25b; --tag-fg:#3a2f00;
+  --ok:#2f7a4f; --ok-soft:#e2f1e7; --warn:#9a5a00; --warn-soft:#fbeedb; --off:#7a7f88; --off-soft:#eceef1;
+  --f-display:"Young Serif",Georgia,"Times New Roman",serif;
+  --f-body:"Source Sans 3",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#12171e; --panel:#1a212b; --fg:#e6eaf0; --muted:#98a3b3; --line:#2c3541;
+  --accent:#8db4e2; --accent-soft:#1f2c3d; --tag:#e7c548; --tag-fg:#2a2200;
+  --ok:#7cc79b; --ok-soft:#1b3326; --warn:#e8b46a; --warn-soft:#3a2c17; --off:#9aa1ab; --off-soft:#242b35; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,5vw,2.6rem);margin:0;line-height:1.1;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:62ch}
+.summary{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.92rem;color:var(--muted)}
+.summary b{color:var(--fg);font-variant-numeric:tabular-nums}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.filters button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  padding:6px 12px;border-radius:999px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.filters button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.platform{display:flex;flex-direction:column;gap:10px}
+h2{font-family:var(--f-display);font-weight:400;font-size:1.35rem;margin:0;display:flex;align-items:baseline;gap:10px}
+h2 small{font-family:var(--f-body);font-size:.85rem;color:var(--muted)}
+details.show{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+details.show>summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+details.show>summary::-webkit-details-marker{display:none}
+.name{font-weight:700;font-size:1.05rem;min-width:0}
+.meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.88rem;color:var(--muted)}
+.pill{font-size:.76rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.pill.airing{background:var(--ok-soft);color:var(--ok)}
+.pill.coming{background:var(--warn-soft);color:var(--warn)}
+.pill.waiting{background:var(--accent-soft);color:var(--accent)}
+.pill.ended{background:var(--off-soft);color:var(--off)}
+.tag{background:var(--tag);color:var(--tag-fg);font-size:.74rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.count{font-family:var(--f-mono);font-size:.85rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{grid-column:1/-1;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.body{border-top:1px solid var(--line);padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.note{margin:0;font-size:.92rem;color:var(--muted);max-width:68ch}
+.note b{color:var(--fg)}
+.season{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 -4px}
+ul.eps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ul.eps li{display:grid;grid-template-columns:auto 4.2rem 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+ul.eps li:last-child{border-bottom:0}
+ul.eps input{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;margin:0}
+.code{font-family:var(--f-mono);font-size:.82rem;color:var(--muted)}
+.title{min-width:0}
+.date{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+li.done .title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+li.future .title,li.future .code{opacity:.55}
+li.next .title::after{content:"Up next";margin-left:8px;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.state{padding:28px 18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center}
+footer{font-size:.84rem;color:var(--muted)}
+@media (max-width:480px){ul.eps li{grid-template-columns:auto 3.6rem 1fr}.date{grid-column:3}}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mystery Watch List</h1>
+    <p class="sub">Every show we follow, where it streams, and where we are in it. Tick an episode once you've watched it; your ticks are saved in this browser.</p>
+    <div class="summary" id="summary"></div>
+  </header>
+  <div class="filters" id="filters" role="group" aria-label="Filter by service"></div>
+  <main id="list"></main>
+  <footer id="foot"></footer>
+</div>
+<script>
+const SHOWS=[{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":"2024-12-05","season":"Season 1","title":"Episode 1"},{"code":"S1E2","date":"2024-12-05","season":"Season 1","title":"Episode 2"},{"code":"S1E3","date":"2024-12-05","season":"Season 1","title":"Episode 3"},{"code":"S1E4","date":"2024-12-05","season":"Season 1","title":"Episode 4"},{"code":"S1E5","date":"2024-12-05","season":"Season 1","title":"Episode 5"},{"code":"S1E6","date":"2024-12-05","season":"Season 1","title":"Episode 6"},{"code":"S2E1","date":"2026-11-05","season":"Season 2","title":"Season 2 premiere"}],"latest":"Season 2 drops Thu Nov 5","name":"Black Doves","note":"<b>Season 2<\/b> arrives on Netflix this Thursday, November 5. Netflix usually drops a whole season at once; the next check will add its episodes.","order":1,"platform":"Netflix","status":"coming","id":"black-doves"},{"checked":"2026-11-03","episodes":[{"code":"S4E1","date":"2026-08-03","season":"Season 4","title":"Death on the Aether"},{"code":"S4E2","date":"2026-08-10","season":"Season 4","title":"Episode 2"},{"code":"S4E3","date":"2026-08-17","season":"Season 4","title":"Episode 3"},{"code":"S4E4","date":"2026-08-24","season":"Season 4","title":"The Petrov Extension"}],"latest":"Season 4 finished Aug 24","name":"The Chelsea Detective","note":"<b>Season 4<\/b> ran August 3\u201324, 2026: four feature-length mysteries. No Season 5 announced yet.","order":2,"platform":"Acorn TV","status":"waiting","id":"chelsea-detective"},{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":"2026-09-10","season":"Season 1","title":"Episode 1"},{"code":"S1E2","date":"2026-09-17","season":"Season 1","title":"Episode 2"},{"code":"S1E3","date":"2026-09-24","season":"Season 1","title":"Episode 3"},{"code":"S1E4","date":"2026-10-01","season":"Season 1","title":"Episode 4"},{"code":"S1E5","date":"2026-10-08","season":"Season 1","title":"Episode 5"},{"code":"S1E6","date":"2026-10-15","season":"Season 1","title":"Episode 6"},{"code":"S1E7","date":"2026-10-22","season":"Season 1","title":"Episode 7"},{"code":"S1E8","date":"2026-10-29","season":"Season 1","title":"Episode 8"}],"latest":"Season 1 complete","name":"Cooper & Fry","note":"<b>Season 1<\/b> started weekly on BritBox September 10, 2026 (Premier subscribers got it all on August 17). BritBox lists it as 8 parts; later dates are estimates. Season 2 is filming for 2027.","order":1,"platform":"BritBox","status":"waiting","id":"cooper-fry"},{"checked":"2026-11-07","episodes":[{"code":"S1E1","date":"2025-05-29","season":"Season 1","title":"Episode 1"},{"code":"S1E2","date":"2025-05-29","season":"Season 1","title":"Episode 2"},{"code":"S1E3","date":"2025-05-29","season":"Season 1","title":"Episode 3"},{"code":"S1E4","date":"2025-05-29","season":"Season 1","title":"Episode 4"},{"code":"S1E5","date":"2025-05-29","season":"Season 1","title":"Episode 5"},{"code":"S1E6","date":"2025-05-29","season":"Season 1","title":"Episode 6"},{"code":"S1E7","date":"2025-05-29","season":"Season 1","title":"Episode 7"},{"code":"S1E8","date":"2025-05-29","season":"Season 1","title":"Episode 8"},{"code":"S1E9","date":"2025-05-29","season":"Season 1","title":"Episode 9"}],"latest":"Season 1 watched; Season 2 likely 2027","name":"Dept. Q","note":"Matthew Goode as DCI Carl Morck, running Edinburgh's cold-case unit. <b>Season 1<\/b> (9 episodes) dropped all at once on May 29, 2025. Season 2 finished filming October 24, 2026. Netflix hasn't set a date yet; the expectation is the second half of 2027.","order":2,"platform":"Netflix","status":"waiting","id":"dept-q"},{"checked":"2026-11-03","episodes":[{"code":"S13E1","date":"2026-02-03","season":"Season 13","title":"Episode 1"},{"code":"S13E2","date":"2026-02-10","season":"Season 13","title":"Episode 2"},{"code":"S13E3","date":"2026-02-17","season":"Season 13","title":"Episode 3"},{"code":"S13E4","date":"2026-02-24","season":"Season 13","title":"Episode 4"},{"code":"S13E5","date":"2026-03-03","season":"Season 13","title":"Episode 5"},{"code":"S13E6","date":"2026-03-10","season":"Season 13","title":"Episode 6"},{"code":"S13E7","date":"2026-03-17","season":"Season 13","title":"Episode 7"},{"code":"S13E8","date":"2026-03-24","season":"Season 13","title":"Episode 8"},{"code":"S13E9","date":"2026-03-31","season":"Season 13","title":"Episode 9"},{"code":"S13E10","date":"2026-04-07","season":"Season 13","title":"Episode 10"}],"latest":"Season 13 on BritBox; 14 due early 2027","name":"Father Brown","note":"<b>Season 13<\/b> started on BritBox February 3, 2026. Season 14 finished filming and is expected in early 2027; Season 15 is also ordered. Episode titles and dates below are placeholders until the next check fills them in.","order":4,"platform":"BritBox","status":"waiting","id":"father-brown"},{"checked":"2026-11-03","episodes":[{"code":"S5E1","date":"2026-02-05","season":"Season 5","title":"Episode 1"},{"code":"S5E2","date":"2026-02-12","season":"Season 5","title":"Episode 2"},{"code":"S5E3","date":"2026-02-19","season":"Season 5","title":"Episode 3"},{"code":"S5E4","date":"2026-02-26","season":"Season 5","title":"Find Them Dead"}],"latest":"Season 5 on BritBox; Season 6 early 2027","name":"Grace","note":"BritBox US has <b>Season 5<\/b> (four films, February 2026). Season 6 already aired in the UK and is expected on BritBox US in early 2027; Season 7 is filming.","order":2,"platform":"BritBox","status":"coming","id":"grace"},{"checked":"2026-11-03","episodes":[{"code":"S2E1","date":"2025-10-02","season":"Season 2","title":"A Darker Domain, Part 1"},{"code":"S2E2","date":"2025-10-09","season":"Season 2","title":"A Darker Domain, Part 2"},{"code":"S2E3","date":"2025-10-16","season":"Season 2","title":"A Darker Domain, Part 3"}],"latest":"Season 2 complete","name":"Karen Pirie","note":"<b>Season 2<\/b> (A Darker Domain, three feature-length parts) streamed October 2\u201316, 2025. No Season 3 news yet.","order":3,"platform":"BritBox","status":"waiting","id":"karen-pirie"},{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":"2025-09-04","season":"Season 1","title":"A Place of Hiding"},{"code":"S1E2","date":"2025-09-11","season":"Season 1","title":"This Body of Death"},{"code":"S1E3","date":"2025-09-18","season":"Season 1","title":"Careless in Red"},{"code":"S1E4","date":"2025-09-25","season":"Season 1","title":"With No One as a Witness"}],"latest":"Season 1 complete; Season 2 filming","name":"Lynley (Inspector Lynley)","note":"<b>Season 1<\/b> of the new Lynley streamed September 4\u201325, 2025. Season 2 (eight episodes) is in production for the 2026\u201327 season.","order":7,"platform":"BritBox","status":"waiting","id":"lynley"},{"checked":"2026-11-03","episodes":[{"code":"S5E1","date":"2026-11-09","season":"Season 5","title":"Episode 1"},{"code":"S5E2","date":"2026-11-16","season":"Season 5","title":"Episode 2"},{"code":"S5E3","date":"2026-11-23","season":"Season 5","title":"Episode 3"},{"code":"S5E4","date":"2026-11-30","season":"Season 5","title":"Episode 4"},{"code":"S5E5","date":"2026-12-07","season":"Season 5","title":"Episode 5"},{"code":"S5E6","date":"2026-12-14","season":"Season 5","title":"Episode 6"},{"code":"S5E7","date":"2026-12-21","season":"Season 5","title":"Episode 7"}],"latest":"Season 5 starts Mon Nov 9","name":"The Madame Blanc Mysteries","note":"<b>Season 5<\/b> (7 episodes) lands on Acorn TV Monday, November 9, with new episodes weekly after that. Dates after the premiere are estimates. Seasons 1\u20134 are already on Acorn.","order":1,"platform":"Acorn TV","status":"coming","id":"madame-blanc"},{"checked":"2026-11-03","episodes":[{"code":"S4E1","date":null,"season":"Season 4","title":"Episode 1"},{"code":"S4E2","date":null,"season":"Season 4","title":"Episode 2"},{"code":"S4E3","date":null,"season":"Season 4","title":"Episode 3"}],"latest":"Ended after Season 4","name":"McDonald & Dodds","note":"The series ended after <b>Season 4<\/b> (three feature-length episodes, 2024). All four seasons are on BritBox.","order":8,"platform":"BritBox","status":"ended","id":"mcdonald-dodds"},{"checked":"2026-11-03","episodes":[{"code":"S19E1","date":"2026-03-02","season":"Season 19","title":"The Boys Are Back in Town"},{"code":"S19E2","date":"2026-03-09","season":"Season 19","title":"Episode 2"},{"code":"S19E3","date":"2026-03-16","season":"Season 19","title":"Episode 3"},{"code":"S19E4","date":"2026-03-23","season":"Season 19","title":"Episode 4"},{"code":"S19E5","date":"2026-03-30","season":"Season 19","title":"Episode 5"},{"code":"S19E6","date":"2026-04-06","season":"Season 19","title":"Episode 6"},{"code":"S19E7","date":"2026-04-13","season":"Season 19","title":"Episode 7"},{"code":"S19E8","date":"2026-04-20","season":"Season 19","title":"Episode 8"},{"code":"S19E9","date":"2026-04-27","season":"Season 19","title":"Episode 9"},{"code":"S19E10","date":"2026-05-04","season":"Season 19","title":"Episode 10"},{"code":"S19E11","date":"2026-05-11","season":"Season 19","title":"Episode 11"},{"code":"S19E12","date":"2026-05-18","season":"Season 19","title":"Episode 12"},{"code":"S19E13","date":"2026-05-25","season":"Season 19","title":"Episode 13"},{"code":"S19E14","date":"2026-06-01","season":"Season 19","title":"Game, Set, Murdoch"},{"code":"S19E15","date":"2026-06-08","season":"Season 19","title":"The Fall of the House of Newsome"},{"code":"S19E16","date":"2026-06-15","season":"Season 19","title":"The Panic in High Park"},{"code":"S19E17","date":"2026-06-22","season":"Season 19","title":"The Hunting Lodge"},{"code":"S19E18","date":"2026-06-29","season":"Season 19","title":"Another Brick in the Wall"},{"code":"S19E19","date":"2026-07-06","season":"Season 19","title":"The Face of Evil"},{"code":"S19E20","date":"2026-07-13","season":"Season 19","title":"Fire in the Sky"},{"code":"S19E21","date":"2026-07-20","season":"Season 19","title":"Hell of a Woman"}],"latest":"Season 19 on Acorn; Season 20 airing in Canada","name":"Murdoch Mysteries","note":"Acorn TV has <b>Season 19<\/b> (21 episodes, March\u2013July 2026). <b>Season 20<\/b> began October 5 on CBC in Canada and Ovation in the US; Acorn usually gets it about four months later, so expect it around February 2027.","order":3,"platform":"Acorn TV","status":"waiting","id":"murdoch"},{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":null,"season":"Season 1","title":"Chapter 1"},{"code":"S1E2","date":null,"season":"Season 1","title":"Chapter 2"},{"code":"S1E3","date":null,"season":"Season 1","title":"Chapter 3"},{"code":"S1E4","date":null,"season":"Season 1","title":"Chapter 4"},{"code":"S1E5","date":null,"season":"Season 1","title":"Chapter 5"},{"code":"S1E6","date":null,"season":"Season 1","title":"Chapter 6"},{"code":"S1E7","date":null,"season":"Season 1","title":"Chapter 7"},{"code":"S1E8","date":null,"season":"Season 1","title":"Chapter 8"},{"code":"S2E1","date":null,"season":"Season 2","title":"Chapter 9"},{"code":"S2E2","date":null,"season":"Season 2","title":"Chapter 10"},{"code":"S2E3","date":null,"season":"Season 2","title":"Chapter 11"},{"code":"S2E4","date":null,"season":"Season 2","title":"Chapter 12"},{"code":"S2E5","date":null,"season":"Season 2","title":"Chapter 13"},{"code":"S2E6","date":null,"season":"Season 2","title":"Chapter 14"},{"code":"S2E7","date":null,"season":"Season 2","title":"Chapter 15"},{"code":"S2E8","date":null,"season":"Season 2","title":"Chapter 16"}],"latest":"Ended after 2 seasons","name":"Perry Mason","note":"Matthew Rhys as Perry Mason in 1930s Los Angeles. HBO stopped after <b>two seasons<\/b> (2020, 2023).","order":2,"platform":"HBO Max","status":"ended","id":"perry-mason"},{"checked":"2026-11-03","episodes":[{"code":"S10E1","date":"2026-01-01","season":"Season 10","title":"Episode 1"},{"code":"S10E2","date":"2026-01-08","season":"Season 10","title":"Episode 2"},{"code":"S10E3","date":"2026-01-15","season":"Season 10","title":"Episode 3"},{"code":"S10E4","date":"2026-01-22","season":"Season 10","title":"Episode 4"},{"code":"S10E5","date":"2026-01-29","season":"Season 10","title":"Episode 5"},{"code":"S10E6","date":"2026-02-05","season":"Season 10","title":"Episode 6"}],"latest":"Season 10 on BritBox; 11 coming","name":"Shetland","note":"BritBox has <b>Season 10<\/b> (six episodes, January 1 \u2013 February 5, 2026). Season 11, Tosh's last, premieres on the BBC November 12; BritBox US usually follows around the start of the new year.","order":5,"platform":"BritBox","status":"coming","id":"shetland"},{"checked":"2026-11-03","episodes":[{"code":"S3E1","date":"2026-01-28","season":"Season 3","title":"Episode 1"},{"code":"S3E2","date":"2026-02-04","season":"Season 3","title":"Episode 2"},{"code":"S3E3","date":"2026-02-11","season":"Season 3","title":"Episode 3"},{"code":"S3E4","date":"2026-02-18","season":"Season 3","title":"Episode 4"},{"code":"S3E5","date":"2026-02-25","season":"Season 3","title":"Episode 5"},{"code":"S3E6","date":"2026-03-04","season":"Season 3","title":"Episode 6"},{"code":"S3E7","date":"2026-03-11","season":"Season 3","title":"Episode 7"},{"code":"S3E8","date":"2026-03-18","season":"Season 3","title":"Episode 8"},{"code":"S3E9","date":"2026-03-25","season":"Season 3","title":"Episode 9"},{"code":"S3E10","date":"2026-04-01","season":"Season 3","title":"Episode 10"},{"code":"S3E11","date":"2026-04-08","season":"Season 3","title":"Episode 11"}],"latest":"Season 3 complete; Season 4 filming","name":"Shrinking","note":"You've watched some of this already, so tick what you've seen. <b>Season 3<\/b> ran January 28 \u2013 April 8, 2026. Season 4 started filming in May.","order":2,"platform":"Apple TV","status":"waiting","id":"shrinking"},{"checked":"2026-11-03","episodes":[{"code":"S4E1","date":"2024-12-16","season":"Season 4","title":"Christmas Special 2024"},{"code":"S4E2","date":"2025-08-18","season":"Season 4","title":"Biff! Pow! Zap!"},{"code":"S4E3","date":"2025-08-25","season":"Season 4","title":"A Murder of Crows"},{"code":"S4E4","date":"2025-09-01","season":"Season 4","title":"Are Ye' Dancin'?"},{"code":"S4E5","date":"2025-09-08","season":"Season 4","title":"Killer Heels"},{"code":"S4E6","date":"2025-09-15","season":"Season 4","title":"Let the Games Begin!"},{"code":"S4E7","date":"2025-09-22","season":"Season 4","title":"There's No \"I\" In Slaughter"},{"code":"S4E8","date":"2025-09-29","season":"Season 4","title":"The Happiest Family"},{"code":"S4E9","date":"2025-10-06","season":"Season 4","title":"And Then There Were Nun"}],"latest":"Season 4 complete","name":"Sister Boniface Mysteries","note":"<b>Season 4<\/b> wrapped on BritBox October 6, 2025. No Season 5 has been announced.","order":6,"platform":"BritBox","status":"waiting","id":"sister-boniface"},{"checked":"2026-11-07","episodes":[{"code":"S4E1","date":"2026-08-05","season":"Season 4","title":"Episode 1"},{"code":"S4E2","date":"2026-08-12","season":"Season 4","title":"Episode 2"},{"code":"S4E3","date":"2026-08-19","season":"Season 4","title":"Episode 3"},{"code":"S4E4","date":"2026-08-26","season":"Season 4","title":"Episode 4"},{"code":"S4E5","date":"2026-09-02","season":"Season 4","title":"Episode 5"},{"code":"S4E6","date":"2026-09-09","season":"Season 4","title":"Episode 6"},{"code":"S4E7","date":"2026-09-16","season":"Season 4","title":"Episode 7"},{"code":"S4E8","date":"2026-09-23","season":"Season 4","title":"Episode 8"},{"code":"S4E9","date":"2026-09-30","season":"Season 4","title":"Episode 9"},{"code":"S4E10","date":"2026-10-07","season":"Season 4","title":"Episode 10"}],"latest":"Season 4 out; Seasons 1-3 watched","name":"Ted Lasso","note":"Seasons 1\u20133 already watched. <b>Season 4<\/b> (10 episodes) ran weekly August 5 \u2013 October 7, 2026, so it is all available now.","order":3,"platform":"Apple TV","status":"waiting","id":"ted-lasso"},{"checked":"2026-11-03","episodes":[{"code":"S5E1","date":"2024-09-17","season":"Season 5","title":"Episode 1"},{"code":"S5E2","date":"2024-09-17","season":"Season 5","title":"Episode 2"},{"code":"S5E3","date":"2024-09-24","season":"Season 5","title":"Episode 3"},{"code":"S5E4","date":"2024-09-24","season":"Season 5","title":"Episode 4"},{"code":"S5E5","date":"2024-10-01","season":"Season 5","title":"Episode 5"},{"code":"S5E6","date":"2024-10-01","season":"Season 5","title":"Episode 6"}],"latest":"Season 5 on BritBox; 6 due 2027","name":"The Bay","note":"BritBox has <b>Seasons 1\u20135<\/b>; Season 5 (six episodes) arrived September 2024. Season 6 is filming and expected in 2027.","order":9,"platform":"BritBox","status":"waiting","id":"the-bay"},{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":null,"season":"Season 1","title":"The Long Bright Dark"},{"code":"S1E2","date":null,"season":"Season 1","title":"Seeing Things"},{"code":"S1E3","date":null,"season":"Season 1","title":"The Locked Room"},{"code":"S1E4","date":null,"season":"Season 1","title":"Who Goes There"},{"code":"S1E5","date":null,"season":"Season 1","title":"The Secret Fate of All Life"},{"code":"S1E6","date":null,"season":"Season 1","title":"Haunted Houses"},{"code":"S1E7","date":null,"season":"Season 1","title":"After You've Gone"},{"code":"S1E8","date":null,"season":"Season 1","title":"Form and Void"}],"latest":"Season 1 (2014)","name":"True Detective","note":"The one you recommended: <b>Season 1<\/b>, Matthew McConaughey and Woody Harrelson as Rust Cohle and Marty Hart.","order":1,"platform":"HBO Max","status":"ended","id":"true-detective"},{"checked":"2026-11-03","episodes":[{"code":"S1E1","date":"2026-04-29","season":"Season 1","title":"Welcome to Widow's Bay"},{"code":"S1E2","date":"2026-04-29","season":"Season 1","title":"Lodging"},{"code":"S1E3","date":"2026-05-06","season":"Season 1","title":"Episode 3"},{"code":"S1E4","date":"2026-05-13","season":"Season 1","title":"Beach Reads"},{"code":"S1E5","date":"2026-05-20","season":"Season 1","title":"Episode 5"},{"code":"S1E6","date":"2026-05-27","season":"Season 1","title":"Our History"},{"code":"S1E7","date":"2026-05-27","season":"Season 1","title":"Seasickness"},{"code":"S1E8","date":"2026-06-03","season":"Season 1","title":"Episode 8"},{"code":"S1E9","date":"2026-06-10","season":"Season 1","title":"Episode 9"},{"code":"S1E10","date":"2026-06-17","season":"Season 1","title":"Episode 10"}],"latest":"Season 1 complete","name":"Widow's Bay","note":"Matthew Rhys as the mayor of a cursed New England island. <b>Season 1<\/b> (10 episodes) ran April 29 \u2013 June 17, 2026. No Season 2 announced yet.","order":1,"platform":"Apple TV","status":"waiting","id":"widows-bay"}];
+const PLATFORMS=["Acorn TV","BritBox","HBO Max","Netflix","Apple TV"];
+const KEY="mystery-watch-list:watched", OPEN_KEY="mystery-watch-list:open";
+let shows=SHOWS, filter="All", watched={}, openSet=new Set();
+try{watched=JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){}
+try{openSet=new Set(JSON.parse(localStorage.getItem(OPEN_KEY)||"[]"))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(watched))}catch(e){}};
+const d=new Date(), today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=x=>{if(!x)return"";const t=new Date(x+"T12:00:00");return isNaN(t)?x:t.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
+
+function render(){
+  document.getElementById("filters").innerHTML=["All",...PLATFORMS,"New to watch"].map(p=>`<button type="button" data-f="${p}" aria-pressed="${p===filter}">${p}</button>`).join("");
+  let totalEps=0,totalDone=0,newCount=0;const byP={};
+  for(const s of shows){
+    const w=watched[s.id]||{};
+    const released=s.episodes.filter(e=>!e.date||e.date<=today);
+    s._done=s.episodes.filter(e=>w[e.code]).length;
+    s._new=released.filter(e=>!w[e.code]).length;
+    totalEps+=released.length;totalDone+=released.filter(e=>w[e.code]).length;if(s._new)newCount++;
+    if(filter==="All"||s.platform===filter||(filter==="New to watch"&&s._new>0))(byP[s.platform]=byP[s.platform]||[]).push(s);
+  }
+  document.getElementById("summary").innerHTML=`<span><b>${shows.length}</b> shows</span><span><b>${totalDone}</b> of <b>${totalEps}</b> released episodes watched</span><span><b>${newCount}</b> shows with something unwatched</span>`;
+  let html="";
+  for(const p of PLATFORMS){
+    const arr=(byP[p]||[]).sort((a,b)=>(a.order??99)-(b.order??99));
+    if(!arr.length)continue;
+    html+=`<section class="platform"><h2>${esc(p)}<small>${arr.length} show${arr.length>1?"s":""}</small></h2>${arr.map(showHTML).join("")}</section>`;
+  }
+  document.getElementById("list").innerHTML=html||'<div class="state">Nothing matches this filter.</div>';
+  const last=shows.map(s=>s.checked).filter(Boolean).sort().pop();
+  document.getElementById("foot").textContent=last?`Episode info last checked ${fmt(last)}.`:"";
+}
+function showHTML(s){
+  const w=watched[s.id]||{}, n=s.episodes.length, pct=n?Math.round(s._done/n*100):0;
+  const pillCls={airing:"airing",coming:"coming",waiting:"waiting",ended:"ended"}[s.status]||"waiting";
+  const pillTxt={airing:"Airing now",coming:"New season soon",waiting:"Between seasons",ended:"Ended"}[s.status]||"Between seasons";
+  const nextEp=s.episodes.find(e=>!w[e.code]&&(!e.date||e.date<=today));
+  const seasons={};for(const e of s.episodes){const k=e.season||"";(seasons[k]=seasons[k]||[]).push(e)}
+  let eps="";
+  for(const [k,arr] of Object.entries(seasons)){
+    if(Object.keys(seasons).length>1||k)eps+=`<p class="season">${esc(k)}</p>`;
+    eps+=`<ul class="eps">`+arr.map(e=>{
+      const done=!!w[e.code], fut=e.date&&e.date>today, nx=nextEp&&nextEp.code===e.code, id=`ep-${s.id}-${e.code}`;
+      return `<li class="${done?"done":""} ${fut?"future":""} ${nx?"next":""}"><input type="checkbox" id="${id}" data-show="${s.id}" data-ep="${esc(e.code)}" ${done?"checked":""} aria-label="Watched ${esc(s.name)} ${esc(e.code)}"><label class="code" for="${id}">${esc(e.code)}</label><label class="title" for="${id}">${esc(e.title||"Episode")}</label><span class="date">${fut?"Out ":""}${fmt(e.date)}</span></li>`}).join("")+`</ul>`;
+  }
+  return `<details class="show" data-id="${s.id}" ${openSet.has(s.id)?"open":""}><summary>
+    <span class="name">${esc(s.name)}</span><span class="count">${s._done}/${n}</span>
+    <span class="meta"><span class="pill ${pillCls}">${pillTxt}</span>${s._new?`<span class="tag">${s._new} unwatched</span>`:""}<span>${esc(s.latest||"")}</span></span>
+    <span class="bar"><i style="width:${pct}%"></i></span></summary>
+    <div class="body">${s.note?`<p class="note">${s.note}</p>`:""}${eps}</div></details>`;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(b){filter=b.dataset.f;render()}});
+document.addEventListener("toggle",e=>{const el=e.target;if(!el.matches||!el.matches("details.show"))return;
+  el.open?openSet.add(el.dataset.id):openSet.delete(el.dataset.id);try{localStorage.setItem(OPEN_KEY,JSON.stringify([...openSet]))}catch(_){}},true);
+document.addEventListener("change",e=>{
+  const cb=e.target;if(!cb.matches("input[data-show]"))return;
+  const sid=cb.dataset.show, code=cb.dataset.ep, cur={...(watched[sid]||{})};
+  if(cb.checked)cur[code]=today;else delete cur[code];
+  watched[sid]=cur;save();render();
+});
+render();
+</script>
+</body>
+</html>
