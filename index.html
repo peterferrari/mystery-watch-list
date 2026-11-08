@@ -78,6 +78,15 @@ footer button{font:inherit;font-size:inherit;color:var(--accent);background:none
 .unlock button{font:inherit;font-size:.92rem;padding:7px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--bg);cursor:pointer}
 .unlock button.ghost{background:none;color:var(--accent)}
 .unlock .msg{margin:0;font-size:.88rem;color:var(--warn);min-height:1em}
+.remove{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border-top:1px dashed var(--line);padding-top:10px;font-size:.9rem;color:var(--muted)}
+button.link{font:inherit;font-size:.9rem;color:var(--accent);background:none;border:0;padding:4px 0;cursor:pointer;text-decoration:underline}
+.remove button.link{color:var(--muted)}
+button.danger{font:inherit;font-size:.88rem;padding:5px 12px;border-radius:6px;border:1px solid #b3261e;background:#b3261e;color:#fff;cursor:pointer}
+details.removed{border:1px dashed var(--line);border-radius:10px;padding:10px 16px;color:var(--muted)}
+details.removed summary{cursor:pointer;font-weight:600}
+details.removed ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column}
+details.removed li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border-top:1px dashed var(--line);color:var(--fg)}
+details.removed small{color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.9rem;max-width:calc(100% - 32px)}
 @media (max-width:480px){ul.eps li{grid-template-columns:auto 3.6rem 1fr}.date{grid-column:3}}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s ease}}
@@ -106,7 +115,7 @@ const PLATFORMS=["Acorn TV","BritBox","HBO Max","Netflix","Apple TV"];
 // which the database's security rules check. The passcode is never stored in the database.
 const DB="projects/mystery-watch-list/databases/(default)/documents", API="https://firestore.googleapis.com/v1/";
 const CODE_KEY="mystery-watch-list:code", OPEN_KEY="mystery-watch-list:open";
-let shows=SHOWS, filter="All", watched={}, openSet=new Set(), loaded=false, loadErr=false, pending=null;
+let shows=SHOWS, filter="All", watched={}, removed=new Set(), openSet=new Set(), loaded=false, loadErr=false, pending=null, confirming=null;
 let code=""; try{code=localStorage.getItem(CODE_KEY)||""}catch(e){}
 try{openSet=new Set(JSON.parse(localStorage.getItem(OPEN_KEY)||"[]"))}catch(e){}
 const busy={};
@@ -114,22 +123,38 @@ async function load(){
   try{
     const r=await fetch(API+DB+"/watched?pageSize=300",{cache:"no-store"});
     if(!r.ok)throw new Error(r.status);
-    const j=await r.json(), next={};
-    for(const d of j.documents||[]){const f=d.fields?.eps?.mapValue?.fields||{};next[d.name.split("/").pop()]=Object.fromEntries(Object.entries(f).map(([k,v])=>[k,v.stringValue||"1"]))}
-    for(const sid in busy)if(busy[sid])next[sid]=watched[sid];  // keep in-flight edits
-    watched=next;loaded=true;loadErr=false;
+    const j=await r.json(), next={}, nextRemoved=new Set();
+    for(const d of j.documents||[]){const id=d.name.split("/").pop(), f=d.fields?.eps?.mapValue?.fields||{};
+      next[id]=Object.fromEntries(Object.entries(f).map(([k,v])=>[k,v.stringValue||"1"]));
+      if(d.fields?.removed?.booleanValue)nextRemoved.add(id)}
+    for(const sid in busy)if(busy[sid]){next[sid]=watched[sid];removed.has(sid)?nextRemoved.add(sid):nextRemoved.delete(sid)}  // keep in-flight edits
+    if(pending){next[pending.sid]=watched[pending.sid];removed.has(pending.sid)?nextRemoved.add(pending.sid):nextRemoved.delete(pending.sid)}
+    watched=next;removed=nextRemoved;loaded=true;loadErr=false;
   }catch(e){loadErr=true}
   render();
 }
-async function save(sid,eps){
+async function save(sid){
+  const eps=watched[sid]||{};
   const writes=[{update:{name:`${DB}/gate/${encodeURIComponent(code)}`,fields:{}},updateTransforms:[{fieldPath:"t",setToServerValue:"REQUEST_TIME"}]},
-    {update:{name:`${DB}/watched/${sid}`,fields:{eps:{mapValue:{fields:Object.fromEntries(Object.entries(eps).map(([k,v])=>[k,{stringValue:v}]))}},updated:{stringValue:new Date().toISOString()}}}}];
+    {update:{name:`${DB}/watched/${sid}`,fields:{eps:{mapValue:{fields:Object.fromEntries(Object.entries(eps).map(([k,v])=>[k,{stringValue:v}]))}},removed:{booleanValue:removed.has(sid)},updated:{stringValue:new Date().toISOString()}}}}];
   const r=await fetch(API+DB+":commit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({writes})});
   if(r.status===403)throw Object.assign(new Error("denied"),{denied:true});
   if(!r.ok)throw new Error(r.status);
 }
 function toast(t){const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),3500)}
 function askCode(msg){const f=document.getElementById("unlock");f.hidden=false;document.getElementById("msg").textContent=msg||"";const i=document.getElementById("code");i.value="";i.focus()}
+const snap=sid=>({eps:{...(watched[sid]||{})},rem:removed.has(sid)});
+const restore=(sid,b)=>{watched[sid]=b.eps;b.rem?removed.add(sid):removed.delete(sid)};
+// Apply a change to one show locally, then save it; on failure put it back.
+async function change(sid,mutate,doneMsg){
+  const before=snap(sid);mutate();render();
+  if(!code){pending={sid,before,doneMsg};askCode();return}
+  while(busy[sid])await busy[sid];
+  busy[sid]=save(sid).then(()=>{if(doneMsg)toast(doneMsg)}).catch(err=>{
+      if(err.denied){code="";try{localStorage.removeItem(CODE_KEY)}catch(_){}pending={sid,before,doneMsg};askCode("The passcode has changed. Enter the new one.")}
+      else{restore(sid,before);render();toast("Couldn't save. Check your connection and try again.")}
+    }).finally(()=>{busy[sid]=null});
+}
 const d=new Date(), today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=x=>{if(!x)return"";const t=new Date(x+"T12:00:00");return isNaN(t)?x:t.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
@@ -137,7 +162,8 @@ const fmt=x=>{if(!x)return"";const t=new Date(x+"T12:00:00");return isNaN(t)?x:t
 function render(){
   document.getElementById("filters").innerHTML=["All",...PLATFORMS,"New to watch"].map(p=>`<button type="button" data-f="${p}" aria-pressed="${p===filter}">${p}</button>`).join("");
   let totalEps=0,totalDone=0,newCount=0;const byP={};
-  for(const s of shows){
+  const active=shows.filter(s=>!removed.has(s.id)), gone=shows.filter(s=>removed.has(s.id));
+  for(const s of active){
     const w=watched[s.id]||{};
     const released=s.episodes.filter(e=>!e.date||e.date<=today);
     s._done=s.episodes.filter(e=>w[e.code]).length;
@@ -145,14 +171,16 @@ function render(){
     totalEps+=released.length;totalDone+=released.filter(e=>w[e.code]).length;if(s._new)newCount++;
     if(filter==="All"||s.platform===filter||(filter==="New to watch"&&s._new>0))(byP[s.platform]=byP[s.platform]||[]).push(s);
   }
-  document.getElementById("summary").innerHTML=`<span><b>${shows.length}</b> shows</span><span><b>${totalDone}</b> of <b>${totalEps}</b> released episodes watched</span><span><b>${newCount}</b> shows with something unwatched</span>`;
+  document.getElementById("summary").innerHTML=`<span><b>${active.length}</b> shows</span><span><b>${totalDone}</b> of <b>${totalEps}</b> released episodes watched</span><span><b>${newCount}</b> shows with something unwatched</span>`;
   let html="";
   for(const p of PLATFORMS){
     const arr=(byP[p]||[]).sort((a,b)=>(a.order??99)-(b.order??99));
     if(!arr.length)continue;
     html+=`<section class="platform"><h2>${esc(p)}<small>${arr.length} show${arr.length>1?"s":""}</small></h2>${arr.map(showHTML).join("")}</section>`;
   }
-  document.getElementById("list").innerHTML=html||'<div class="state">Nothing matches this filter.</div>';
+  if(!html)html='<div class="state">Nothing matches this filter.</div>';
+  if(gone.length)html+=`<details class="removed"${openSet.has("__removed")?" open":""} data-id="__removed"><summary>Removed shows (${gone.length})</summary><ul>${gone.map(s=>`<li><span>${esc(s.name)} <small>${esc(s.platform)}</small></span><button type="button" class="link" data-restore="${s.id}">Put back</button></li>`).join("")}</ul></details>`;
+  document.getElementById("list").innerHTML=html;
   const last=shows.map(s=>s.checked).filter(Boolean).sort().pop();
   const status=loadErr?"Couldn't reach the shared list; showing what was last loaded.":(!loaded?"Loading shared ticks…":"");
   document.getElementById("foot").innerHTML=[status&&`<span>${esc(status)}</span>`,last&&`<span>Episode info last checked ${esc(fmt(last))}.</span>`,code?`<button type="button" id="lock">Lock this device</button>`:""].filter(Boolean).join("");
@@ -174,37 +202,39 @@ function showHTML(s){
     <span class="name">${esc(s.name)}</span><span class="count">${s._done}/${n}</span>
     <span class="meta"><span class="pill ${pillCls}">${pillTxt}</span>${s._new?`<span class="tag">${s._new} unwatched</span>`:""}<span>${esc(s.latest||"")}</span></span>
     <span class="bar"><i style="width:${pct}%"></i></span></summary>
-    <div class="body">${s.note?`<p class="note">${s.note}</p>`:""}${eps}</div></details>`;
+    <div class="body">${s.note?`<p class="note">${s.note}</p>`:""}${eps}
+    <div class="remove">${confirming===s.id
+      ?`<span>Remove ${esc(s.name)} from the list for both of you? Ticks are kept if you put it back.</span><button type="button" class="danger" data-remove-yes="${s.id}">Remove</button><button type="button" class="link" data-remove-no>Keep</button>`
+      :`<button type="button" class="link" data-remove="${s.id}">Remove show</button>`}</div></div></details>`;
 }
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-f]");if(b){filter=b.dataset.f;render();return}
   if(e.target.id==="lock"){code="";try{localStorage.removeItem(CODE_KEY)}catch(_){}render();toast("Locked. Ticking will ask for the passcode again.")}
-  if(e.target.id==="cancel"){pending=null;document.getElementById("unlock").hidden=true}
+  if(e.target.id==="cancel"){if(pending){restore(pending.sid,pending.before);pending=null;render()}document.getElementById("unlock").hidden=true}
+  const t=e.target.closest("[data-remove],[data-remove-yes],[data-remove-no],[data-restore]");if(!t)return;
+  e.preventDefault();
+  if(t.dataset.remove){confirming=t.dataset.remove;render()}
+  else if("removeNo" in t.dataset){confirming=null;render()}
+  else if(t.dataset.removeYes){const sid=t.dataset.removeYes, s=shows.find(x=>x.id===sid);confirming=null;openSet.delete(sid);
+    change(sid,()=>removed.add(sid),`Removed ${s.name}. Put it back from "Removed shows" at the bottom.`)}
+  else if(t.dataset.restore){const sid=t.dataset.restore, s=shows.find(x=>x.id===sid);change(sid,()=>removed.delete(sid),`${s.name} is back on the list.`)}
 });
 document.getElementById("unlock").addEventListener("submit",async e=>{
   e.preventDefault();
   const tryCode=document.getElementById("code").value.trim();if(!tryCode)return;
+  if(!pending){document.getElementById("unlock").hidden=true;return}
   const prev=code;code=tryCode;
-  if(!pending){code=prev;return}
-  const {sid,eps,before}=pending;
-  try{await save(sid,eps);try{localStorage.setItem(CODE_KEY,code)}catch(_){}
-    pending=null;document.getElementById("unlock").hidden=true;render();toast("Unlocked on this device.")}
-  catch(err){code=prev;if(err.denied)askCode("That passcode didn't work. Try again.");else{watched[sid]=before;pending=null;document.getElementById("unlock").hidden=true;render();toast("Couldn't save. Check your connection and try again.")}}
+  const {sid,before,doneMsg}=pending;
+  try{await save(sid);try{localStorage.setItem(CODE_KEY,code)}catch(_){}
+    pending=null;document.getElementById("unlock").hidden=true;render();toast(doneMsg||"Unlocked on this device.")}
+  catch(err){code=prev;if(err.denied)askCode("That passcode didn't work. Try again.");else{restore(sid,before);pending=null;document.getElementById("unlock").hidden=true;render();toast("Couldn't save. Check your connection and try again.")}}
 });
-document.addEventListener("toggle",e=>{const el=e.target;if(!el.matches||!el.matches("details.show"))return;
+document.addEventListener("toggle",e=>{const el=e.target;if(!el.matches||!el.matches("details.show,details.removed"))return;
   el.open?openSet.add(el.dataset.id):openSet.delete(el.dataset.id);try{localStorage.setItem(OPEN_KEY,JSON.stringify([...openSet]))}catch(_){}},true);
 document.addEventListener("change",async e=>{
   const cb=e.target;if(!cb.matches("input[data-show]"))return;
-  const sid=cb.dataset.show, ep=cb.dataset.ep, before={...(watched[sid]||{})}, cur={...before};
-  if(cb.checked)cur[ep]=today;else delete cur[ep];
-  watched[sid]=cur;render();
-  if(!code){pending={sid,eps:cur,before};askCode();return}
-  while(busy[sid])await busy[sid];
-  busy[sid]=save(sid,cur).catch(err=>{
-      watched[sid]=before;render();
-      if(err.denied){code="";try{localStorage.removeItem(CODE_KEY)}catch(_){}pending={sid,eps:cur,before:before};watched[sid]=cur;render();askCode("The passcode has changed. Enter the new one.")}
-      else toast("Couldn't save. Check your connection and try again.");
-    }).finally(()=>{busy[sid]=null});
+  const sid=cb.dataset.show, ep=cb.dataset.ep, on=cb.checked;
+  change(sid,()=>{const cur={...(watched[sid]||{})};if(on)cur[ep]=today;else delete cur[ep];watched[sid]=cur});
 });
 render();load();
 setInterval(()=>{if(!document.hidden)load()},20000);
